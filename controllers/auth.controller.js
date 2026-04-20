@@ -1,4 +1,4 @@
-const User = require('../models/user.model');
+const User = require('../models/User.model');
 const Customer = require('../models/Customer.model');
 const generateToken = require('../utils/generateToken');
 
