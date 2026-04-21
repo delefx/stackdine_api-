@@ -193,7 +193,7 @@
 
 
 const MenuItem = require('../models/MenuItem.model');
-const cloudinary = require('../config/cloudinary');
+const { cloudinary, upload } = require('../config/cloudinary');
 
 // @desc    Get all menu items
 // @route   GET /api/menu
