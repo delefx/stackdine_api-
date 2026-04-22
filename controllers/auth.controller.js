@@ -114,7 +114,6 @@
 
 
 
-
 const crypto = require('crypto');
 const User = require('../models/User.model');
 const Customer = require('../models/Customer.model');
@@ -235,28 +234,35 @@ exports.changePassword = async (req, res) => {
 // @route   POST /api/auth/forgot-password
 // @access  Public
 exports.forgotPassword = async (req, res) => {
+  console.log('=== forgot-password hit ===');
+  console.log('req.body:', req.body);
+  console.log('email received:', req.body?.email);
+  console.log('FRONTEND_URL:', process.env.FRONTEND_URL);
+  console.log('EMAIL_USER:', process.env.EMAIL_USER);
   try {
     const { email } = req.body;
 
     const user = await User.findOne({ email });
 
-    // Always respond with 200 so we don't reveal whether an email exists
     if (!user) {
+      console.log('No user found for email:', email);
       return res.status(200).json({
         success: true,
         message: 'If that email exists, a reset link has been sent',
       });
     }
 
-    // Generate raw token and store its hash
     const rawToken = crypto.randomBytes(32).toString('hex');
     const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
 
     user.resetPasswordToken = hashedToken;
-    user.resetPasswordExpire = Date.now() + 15 * 60 * 1000; // 15 minutes
+    user.resetPasswordExpire = Date.now() + 15 * 60 * 1000;
     await user.save({ validateBeforeSave: false });
 
+    console.log('Token saved, sending email to:', user.email);
+
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${rawToken}`;
+    console.log('resetUrl:', resetUrl);
 
     await sendEmail({
       to: user.email,
@@ -265,25 +271,21 @@ exports.forgotPassword = async (req, res) => {
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #0f172a; color: #ffffff;">
           <h1 style="color: #f97316; font-size: 24px; margin-bottom: 8px;">StackDine</h1>
           <p style="color: #9ca3af; margin-bottom: 24px;">Restaurant Management System</p>
-
           <h2 style="font-size: 20px; margin-bottom: 16px;">Hi ${user.name},</h2>
           <p style="color: #d1d5db; line-height: 1.6;">
             We received a request to reset your password. Click the button below to choose a new one.
             This link will expire in <strong style="color: #f97316;">15 minutes</strong>.
           </p>
-
           <div style="text-align: center; margin: 32px 0;">
             <a href="${resetUrl}"
               style="background-color: #f97316; color: #ffffff; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px;">
               Reset Password
             </a>
           </div>
-
           <p style="color: #6b7280; font-size: 14px; line-height: 1.6;">
             If you didn't request a password reset, you can safely ignore this email.
             Your password will not be changed.
           </p>
-
           <p style="color: #6b7280; font-size: 12px; margin-top: 32px; border-top: 1px solid #1f2937; padding-top: 16px;">
             This link expires in 15 minutes. If you need a new one, visit the login page and request again.
           </p>
@@ -291,12 +293,16 @@ exports.forgotPassword = async (req, res) => {
       `,
     });
 
+    console.log('Email sent successfully');
+
     res.status(200).json({
       success: true,
       message: 'If that email exists, a reset link has been sent',
     });
   } catch (error) {
-    // If email fails, clear the token so the user can try again
+    console.log('=== forgotPassword ERROR ===');
+    console.log('error.message:', error.message);
+    console.log('error.stack:', error.stack);
     const user = await User.findOne({ email: req.body.email });
     if (user) {
       user.resetPasswordToken = undefined;
@@ -315,7 +321,6 @@ exports.resetPassword = async (req, res) => {
     const { token } = req.params;
     const { password } = req.body;
 
-    // Hash the incoming raw token to compare with the stored hash
     const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
 
     const user = await User.findOne({
