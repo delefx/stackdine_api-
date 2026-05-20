@@ -65,7 +65,7 @@ exports.generateBill = async (req, res) => {
 
 // @desc    Process payment
 // @route   PATCH /api/billing/:id/pay
-// @access  Private (admin, staff)
+// @access  Private (admin, staff, customer)
 exports.processPayment = async (req, res) => {
   try {
     const bill = await Bill.findById(req.params.id);
@@ -76,6 +76,11 @@ exports.processPayment = async (req, res) => {
 
     if (bill.paymentStatus === 'paid') {
       return res.status(400).json({ message: 'Bill already paid' });
+    }
+
+    // Allow customer to update payment method when paying
+    if (req.body.paymentMethod) {
+      bill.paymentMethod = req.body.paymentMethod;
     }
 
     bill.paymentStatus = 'paid';
