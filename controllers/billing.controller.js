@@ -200,3 +200,24 @@ exports.refundBill = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// @desc    Get my bills (customer)
+// @route   GET /api/billing/mybills
+// @access  Private (customer)
+exports.getMyBills = async (req, res) => {
+  try {
+    const bills = await Bill.find({ customer: req.user.id })
+      .populate('order', 'orderType status items')
+      .populate('issuedBy', 'name')
+      .populate('location', 'name')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: bills.length,
+      data: bills,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
