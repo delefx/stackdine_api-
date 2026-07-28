@@ -34,9 +34,11 @@ exports.generateBill = async (req, res) => {
     const taxAmount = (subTotal * tax) / 100;
     const totalAmount = subTotal - discountAmount + taxAmount + tip;
 
+    const customerId = order.customer ? (order.customer._id || order.customer) : req.user.id;
+
     const bill = await Bill.create({
       order: order._id,
-      customer: order.customer._id,
+      customer: customerId,
       items,
       subTotal,
       discount,
@@ -89,15 +91,17 @@ exports.processPayment = async (req, res) => {
 
     await Order.findByIdAndUpdate(bill.order, { status: 'delivered' });
 
-    await Customer.findOneAndUpdate(
-      { user: bill.customer },
-      {
-        $inc: {
-          totalSpent: bill.totalAmount,
-          loyaltyPoints: Math.floor(bill.totalAmount / 100),
-        },
-      }
-    );
+    if (bill.customer) {
+      await Customer.findOneAndUpdate(
+        { user: bill.customer },
+        {
+          $inc: {
+            totalSpent: bill.totalAmount,
+            loyaltyPoints: Math.floor(bill.totalAmount / 100),
+          },
+        }
+      );
+    }
 
     res.status(200).json({
       success: true,
