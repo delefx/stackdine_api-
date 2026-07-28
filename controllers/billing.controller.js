@@ -20,7 +20,7 @@ exports.generateBill = async (req, res) => {
       return res.status(400).json({ message: 'Bill already generated for this order' });
     }
 
-    const { discount = 0, tax = 0, tip = 0, paymentMethod } = req.body;
+    const { discount = 0, tax = 0, tip = 0, paymentMethod = 'cash' } = req.body;
 
     const items = order.items.map((item) => ({
       name: item.menuItem.name,
