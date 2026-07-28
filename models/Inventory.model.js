@@ -44,6 +44,10 @@ const inventorySchema = new mongoose.Schema(
     lastRestockedAt: {
       type: Date,
     },
+    location: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Location',
+    },
   },
   { timestamps: true }
 );

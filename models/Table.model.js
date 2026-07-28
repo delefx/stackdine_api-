@@ -5,7 +5,6 @@ const tableSchema = new mongoose.Schema(
     tableNumber: {
       type: Number,
       required: [true, 'Table number is required'],
-      unique: true,
     },
     capacity: {
       type: Number,
@@ -32,5 +31,6 @@ const tableSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+tableSchema.index({ tableNumber: 1, location: 1 }, { unique: true });
 
 module.exports = mongoose.model('Table', tableSchema);

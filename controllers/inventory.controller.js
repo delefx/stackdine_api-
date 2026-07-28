@@ -65,15 +65,22 @@ exports.createInventoryItem = async (req, res) => {
 // @access  Private (admin only)
 exports.updateInventoryItem = async (req, res) => {
   try {
-    const item = await Inventory.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true,
-    });
- 
+    const item = await Inventory.findById(req.params.id);
+
     if (!item) {
       return res.status(404).json({ message: 'Inventory item not found' });
     }
- 
+
+    // Update fields from request body
+    const allowedFields = ['name', 'category', 'quantity', 'unit', 'reorderPoint', 'costPerUnit', 'supplier'];
+    allowedFields.forEach((field) => {
+      if (req.body[field] !== undefined) {
+        item[field] = req.body[field];
+      }
+    });
+
+    await item.save(); // Triggers pre-save hook to recalculate isLowStock
+
     res.status(200).json({
       success: true,
       data: item,

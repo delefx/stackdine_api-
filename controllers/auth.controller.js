@@ -1,119 +1,3 @@
-// const User = require('../models/User.model');
-// const Customer = require('../models/Customer.model');
-// const generateToken = require('../utils/generateToken');
-
-// // @desc    Register user
-// // @route   POST /api/auth/register
-// // @access  Public
-// exports.register = async (req, res) => {
-//   try {
-//     const { name, email, password, role } = req.body;
-
-//     const userExists = await User.findOne({ email });
-//     if (userExists) {
-//       return res.status(400).json({ message: 'User already exists' });
-//     }
-
-//     const user = await User.create({ name, email, password, role });
-
-//     if (user.role === 'customer') {
-//       await Customer.create({ user: user._id });
-//     }
-
-//     const token = generateToken(user._id, user.role);
-
-//     res.status(201).json({
-//       success: true,
-//       token,
-//       user: {
-//         id: user._id,
-//         name: user.name,
-//         email: user.email,
-//         role: user.role,
-//       },
-//     });
-//   } catch (error) {
-//     res.status(500).json({ message: error.message });
-//   }
-// };
-
-// // @desc    Login user
-// // @route   POST /api/auth/login
-// // @access  Public
-// exports.login = async (req, res) => {
-//   try {
-//     const { email, password } = req.body;
-
-//     const user = await User.findOne({ email }).select('+password');
-//     if (!user) {
-//       return res.status(401).json({ message: 'Invalid email or password' });
-//     }
-
-//     const isMatch = await user.matchPassword(password);
-//     if (!isMatch) {
-//       return res.status(401).json({ message: 'Invalid email or password' });
-//     }
-
-//     const token = generateToken(user._id, user.role);
-
-//     res.status(200).json({
-//       success: true,
-//       token,
-//       user: {
-//         id: user._id,
-//         name: user.name,
-//         email: user.email,
-//         role: user.role,
-//       },
-//     });
-//   } catch (error) {
-//     res.status(500).json({ message: error.message });
-//   }
-// };
-
-// // @desc    Get current logged in user
-// // @route   GET /api/auth/me
-// // @access  Private
-// exports.getMe = async (req, res) => {
-//   try {
-//     const user = await User.findById(req.user.id);
-//     res.status(200).json({
-//       success: true,
-//       user,
-//     });
-//   } catch (error) {
-//     res.status(500).json({ message: error.message });
-//   }
-// };
-
-// // @desc    Change password
-// // @route   PUT /api/auth/change-password
-// // @access  Private
-// exports.changePassword = async (req, res) => {
-//   try {
-//     const { currentPassword, newPassword } = req.body;
-
-//     const user = await User.findById(req.user.id).select('+password');
-
-//     const isMatch = await user.matchPassword(currentPassword);
-//     if (!isMatch) {
-//       return res.status(401).json({ message: 'Current password is incorrect' });
-//     }
-
-//     user.password = newPassword;
-//     await user.save();
-
-//     res.status(200).json({
-//       success: true,
-//       message: 'Password updated successfully',
-//     });
-//   } catch (error) {
-//     res.status(500).json({ message: error.message });
-//   }
-// };
-
-
-
 const crypto = require('crypto');
 const User = require('../models/User.model');
 const Customer = require('../models/Customer.model');
@@ -234,18 +118,12 @@ exports.changePassword = async (req, res) => {
 // @route   POST /api/auth/forgot-password
 // @access  Public
 exports.forgotPassword = async (req, res) => {
-  console.log('=== forgot-password hit ===');
-  console.log('req.body:', req.body);
-  console.log('email received:', req.body?.email);
-  console.log('FRONTEND_URL:', process.env.FRONTEND_URL);
-  console.log('EMAIL_USER:', process.env.EMAIL_USER);
   try {
     const { email } = req.body;
 
     const user = await User.findOne({ email });
 
     if (!user) {
-      console.log('No user found for email:', email);
       return res.status(200).json({
         success: true,
         message: 'If that email exists, a reset link has been sent',
@@ -259,10 +137,7 @@ exports.forgotPassword = async (req, res) => {
     user.resetPasswordExpire = Date.now() + 15 * 60 * 1000;
     await user.save({ validateBeforeSave: false });
 
-    console.log('Token saved, sending email to:', user.email);
-
     const resetUrl = `${process.env.FRONTEND_URL}/#/reset-password/${rawToken}`;
-    console.log('resetUrl:', resetUrl);
 
     await sendEmail({
       to: user.email,
@@ -293,21 +168,21 @@ exports.forgotPassword = async (req, res) => {
       `,
     });
 
-    console.log('Email sent successfully');
-
     res.status(200).json({
       success: true,
       message: 'If that email exists, a reset link has been sent',
     });
   } catch (error) {
-    console.log('=== forgotPassword ERROR ===');
-    console.log('error.message:', error.message);
-    console.log('error.stack:', error.stack);
-    const user = await User.findOne({ email: req.body.email });
-    if (user) {
-      user.resetPasswordToken = undefined;
-      user.resetPasswordExpire = undefined;
-      await user.save({ validateBeforeSave: false });
+    console.error('forgotPassword error:', error.message);
+    try {
+      const user = await User.findOne({ email: req.body?.email });
+      if (user) {
+        user.resetPasswordToken = undefined;
+        user.resetPasswordExpire = undefined;
+        await user.save({ validateBeforeSave: false });
+      }
+    } catch (cleanupErr) {
+      console.error('Token cleanup failed:', cleanupErr.message);
     }
     res.status(500).json({ message: 'Email could not be sent. Please try again.' });
   }
