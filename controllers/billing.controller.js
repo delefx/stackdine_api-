@@ -89,8 +89,6 @@ exports.processPayment = async (req, res) => {
     bill.paidAt = Date.now();
     await bill.save();
 
-    await Order.findByIdAndUpdate(bill.order, { status: 'delivered' });
-
     if (bill.customer) {
       await Customer.findOneAndUpdate(
         { user: bill.customer },
@@ -158,7 +156,7 @@ exports.getBill = async (req, res) => {
 
     if (
       req.user.role === 'customer' &&
-      bill.customer._id.toString() !== req.user.id
+      bill.customer?._id?.toString() !== req.user.id
     ) {
       return res.status(403).json({ message: 'Not authorized to view this bill' });
     }

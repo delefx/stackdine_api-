@@ -62,14 +62,16 @@ exports.createReservation = async (req, res) => {
       .populate('table', 'tableNumber capacity')
       .populate('location', 'name');
 
-    try {
-      await sendEmail({
-        to: populatedReservation.customer.email,
-        subject: 'StackDine — Reservation Confirmation',
-        html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;background:#0f172a;color:#fff"><h1 style="color:#f97316">StackDine</h1><p style="color:#9ca3af">Restaurant Management System</p><h2>Hi ${populatedReservation.customer.name}, your table is reserved!</h2><p style="color:#d1d5db">Your reservation is pending confirmation.</p></div>`,
-      });
-    } catch (emailErr) {
-      console.error('Reservation email failed:', emailErr.message);
+    if (populatedReservation?.customer?.email) {
+      try {
+        await sendEmail({
+          to: populatedReservation.customer.email,
+          subject: 'StackDine — Reservation Confirmation',
+          html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;background:#0f172a;color:#fff"><h1 style="color:#f97316">StackDine</h1><p style="color:#9ca3af">Restaurant Management System</p><h2>Hi ${populatedReservation.customer.name}, your table is reserved!</h2><p style="color:#d1d5db">Your reservation is pending confirmation.</p></div>`,
+        });
+      } catch (emailErr) {
+        console.error('Reservation email failed:', emailErr.message);
+      }
     }
 
     res.status(201).json({
@@ -147,7 +149,7 @@ exports.getReservation = async (req, res) => {
 
     if (
       req.user.role === 'customer' &&
-      reservation.customer._id.toString() !== req.user.id
+      reservation.customer?._id?.toString() !== req.user.id
     ) {
       return res.status(403).json({ message: 'Not authorized to view this reservation' });
     }
@@ -177,14 +179,16 @@ exports.updateReservationStatus = async (req, res) => {
     await reservation.save();
 
     const populatedRes = await Reservation.findById(req.params.id).populate('customer', 'name email');
-    try {
-      await sendEmail({
-        to: populatedRes.customer.email,
-        subject: `StackDine — Reservation ${status.charAt(0).toUpperCase() + status.slice(1)}`,
-        html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;background:#0f172a;color:#fff"><h1 style="color:#f97316">StackDine</h1><h2>Hi ${populatedRes.customer.name}, your reservation status: ${status}</h2></div>`,
-      });
-    } catch (emailErr) {
-      console.error('Reservation status email failed:', emailErr.message);
+    if (populatedRes?.customer?.email) {
+      try {
+        await sendEmail({
+          to: populatedRes.customer.email,
+          subject: `StackDine — Reservation ${status.charAt(0).toUpperCase() + status.slice(1)}`,
+          html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;background:#0f172a;color:#fff"><h1 style="color:#f97316">StackDine</h1><h2>Hi ${populatedRes.customer.name}, your reservation status: ${status}</h2></div>`,
+        });
+      } catch (emailErr) {
+        console.error('Reservation status email failed:', emailErr.message);
+      }
     }
 
     if (status === 'cancelled' || status === 'completed' || status === 'no-show') {
@@ -227,14 +231,16 @@ exports.cancelReservation = async (req, res) => {
     await reservation.save();
 
     const populatedCancelRes = await Reservation.findById(req.params.id).populate('customer', 'name email');
-    try {
-      await sendEmail({
-        to: populatedCancelRes.customer.email,
-        subject: `StackDine — Reservation Cancelled`,
-        html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;background:#0f172a;color:#fff"><h1 style="color:#f97316">StackDine</h1><h2>Hi ${populatedCancelRes.customer.name}, your reservation status: cancelled</h2></div>`,
-      });
-    } catch (emailErr) {
-      console.error('Reservation cancellation email failed:', emailErr.message);
+    if (populatedCancelRes?.customer?.email) {
+      try {
+        await sendEmail({
+          to: populatedCancelRes.customer.email,
+          subject: `StackDine — Reservation Cancelled`,
+          html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;background:#0f172a;color:#fff"><h1 style="color:#f97316">StackDine</h1><h2>Hi ${populatedCancelRes.customer.name}, your reservation status: cancelled</h2></div>`,
+        });
+      } catch (emailErr) {
+        console.error('Reservation cancellation email failed:', emailErr.message);
+      }
     }
 
     await Table.findByIdAndUpdate(reservation.table, { status: 'available' });

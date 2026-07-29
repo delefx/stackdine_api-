@@ -89,23 +89,33 @@ exports.placeOrder = async (req, res) => {
 // @access  Private (admin, staff)
 exports.getAllOrders = async (req, res) => {
   try {
-    const { status, orderType, location } = req.query;
+    const { status, orderType, location, page, limit } = req.query;
     const filter = {};
 
     if (status) filter.status = status;
     if (orderType) filter.orderType = orderType;
     if (location) filter.location = location;
 
+    const pageNum = parseInt(page) || 1;
+    const pageSize = parseInt(limit) || 50;
+    const skip = (pageNum - 1) * pageSize;
+    const total = await Order.countDocuments(filter);
+
     const orders = await Order.find(filter)
       .populate('customer', 'name email')
       .populate('items.menuItem', 'name price')
       .populate('table', 'tableNumber')
       .populate('location', 'name')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(pageSize);
 
     res.status(200).json({
       success: true,
       count: orders.length,
+      total,
+      page: pageNum,
+      pages: Math.ceil(total / pageSize),
       data: orders,
     });
   } catch (error) {
@@ -131,7 +141,7 @@ exports.getOrder = async (req, res) => {
 
     if (
       req.user.role === 'customer' &&
-      order.customer._id.toString() !== req.user.id
+      order.customer?._id?.toString() !== req.user.id
     ) {
       return res.status(403).json({ message: 'Not authorized to view this order' });
     }
@@ -182,14 +192,16 @@ exports.updateOrderStatus = async (req, res) => {
     await order.save();
 
     const populatedOrder = await Order.findById(req.params.id).populate('customer', 'name email');
-    try {
-      await sendEmail({
-        to: populatedOrder.customer.email,
-        subject: `StackDine — Order ${status.charAt(0).toUpperCase() + status.slice(1)}`,
-        html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;background:#0f172a;color:#fff"><h1 style="color:#f97316">StackDine</h1><h2>Hi ${populatedOrder.customer.name}, your order status: ${status}</h2></div>`,
-      });
-    } catch (emailErr) {
-      console.error('Status email failed:', emailErr.message);
+    if (populatedOrder?.customer?.email) {
+      try {
+        await sendEmail({
+          to: populatedOrder.customer.email,
+          subject: `StackDine — Order ${status.charAt(0).toUpperCase() + status.slice(1)}`,
+          html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;background:#0f172a;color:#fff"><h1 style="color:#f97316">StackDine</h1><h2>Hi ${populatedOrder.customer.name}, your order status: ${status}</h2></div>`,
+        });
+      } catch (emailErr) {
+        console.error('Status email failed:', emailErr.message);
+      }
     }
 
     if (status === 'delivered' || status === 'cancelled') {
@@ -231,14 +243,16 @@ exports.cancelOrder = async (req, res) => {
     await order.save();
 
     const populatedCancelOrder = await Order.findById(req.params.id).populate('customer', 'name email');
-    try {
-      await sendEmail({
-        to: populatedCancelOrder.customer.email,
-        subject: `StackDine — Order Cancelled`,
-        html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;background:#0f172a;color:#fff"><h1 style="color:#f97316">StackDine</h1><h2>Hi ${populatedCancelOrder.customer.name}, your order status: cancelled</h2></div>`,
-      });
-    } catch (emailErr) {
-      console.error('Cancellation email failed:', emailErr.message);
+    if (populatedCancelOrder?.customer?.email) {
+      try {
+        await sendEmail({
+          to: populatedCancelOrder.customer.email,
+          subject: `StackDine — Order Cancelled`,
+          html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;background:#0f172a;color:#fff"><h1 style="color:#f97316">StackDine</h1><h2>Hi ${populatedCancelOrder.customer.name}, your order status: cancelled</h2></div>`,
+        });
+      } catch (emailErr) {
+        console.error('Cancellation email failed:', emailErr.message);
+      }
     }
 
     if (order.table) {

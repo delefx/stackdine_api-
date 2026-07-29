@@ -6,20 +6,30 @@ const { cloudinary, upload } = require('../config/cloudinary');
 // @access  Public
 exports.getAllMenuItems = async (req, res) => {
   try {
-    const { category, isAvailable } = req.query;
+    const { category, isAvailable, page, limit } = req.query;
     // FIX: removed location filter and populate — same issue as inventory
     const filter = {};
 
     if (category) filter.category = category;
     if (isAvailable) filter.isAvailable = isAvailable === 'true';
 
+    const pageNum = parseInt(page) || 1;
+    const pageSize = parseInt(limit) || 50;
+    const skip = (pageNum - 1) * pageSize;
+    const total = await MenuItem.countDocuments(filter);
+
     const menuItems = await MenuItem.find(filter)
       .populate('createdBy', 'name')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(pageSize);
 
     res.status(200).json({
       success: true,
       count: menuItems.length,
+      total,
+      page: pageNum,
+      pages: Math.ceil(total / pageSize),
       data: menuItems,
     });
   } catch (error) {
